@@ -1,12 +1,11 @@
 import datetime
 import enum
-import time
+import json
 from typing import Optional
 
 import requests
-import json
 
-API_V1 = "https://services.pepephone.com/v1/"
+API_V1 = "https://services.pepephone.com/v1"
 DEFAULT_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:97.0) "

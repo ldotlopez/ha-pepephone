@@ -1,16 +1,16 @@
-import unittest
-from unittest.mock import patch
-from pepephone import PepeAPI, LoginError, RequestError, ProductType, API_V1
-
-from samples import (
-    VALID_LOGIN_RESPONSE,
-    INVALID_LOGIN_RESPONSE,
-    PRODUCTS_INFO,
-    PRODUCT_DETAILS,
-    INVALID_PRODUCT_RESPONSE,
-)
 import json
-from typing import Dict, Any
+import unittest
+from typing import Any, Dict
+from unittest.mock import patch
+
+from pepephone import API_V1, LoginError, PepeAPI, ProductType, RequestError
+from samples import (
+    INVALID_LOGIN_RESPONSE,
+    INVALID_PRODUCT_RESPONSE,
+    PRODUCT_DETAILS,
+    PRODUCTS_INFO,
+    VALID_LOGIN_RESPONSE,
+)
 
 
 def as_json(buffer) -> Dict[Any, Any]:
@@ -22,44 +22,56 @@ def as_utf8(buffer: bytes) -> str:
 
 
 class TestPepeAPI(unittest.TestCase):
-    @patch("pepephone.PepeAPI._bytes_request")
-    def test_login(self, _bytes_request):
-        _bytes_request.return_value = VALID_LOGIN_RESPONSE
+    def test_login(self):
         api = PepeAPI()
-        api.login("a", "b")
-
-        # mock.assert_called_with("GET", API_V1 + "/auth")
-
-    @patch("pepephone.PepeAPI._bytes_request")
-    def test_unsuccessful_login(self, _bytes_request):
-        _bytes_request.return_value = INVALID_LOGIN_RESPONSE
-
-        api = PepeAPI()
-        with self.assertRaises(RequestError):
+        with patch(
+            "pepephone.PepeAPI._bytes_request", return_value=VALID_LOGIN_RESPONSE
+        ) as mock:
             api.login("a", "b")
 
-    @patch("pepephone.PepeAPI._bytes_request")
-    def test_get_products(self, _bytes_request):
+        mock.assert_called_with(
+            "POST",
+            API_V1 + "/auth",
+            json={"email": "a", "password": "b", "source": "ECARE_WEB"},
+        )
+
+    def test_unsuccessful_login(self):
+        api = PepeAPI()
+        with patch(
+            "pepephone.PepeAPI._bytes_request", return_value=INVALID_LOGIN_RESPONSE
+        ):
+            with self.assertRaises(RequestError):
+                api.login("a", "b")
+
+    def test_get_products(self):
         api = PepeAPI()
 
-        # mock.return_value = VALID_LOGIN_RESPONSE
-        # self.api.login("a", "b")
-
-        _bytes_request.return_value = PRODUCTS_INFO
-        products = api.get_products()
+        with patch(
+            "pepephone.PepeAPI._bytes_request", return_value=PRODUCTS_INFO
+        ) as mock:
+            products = api.get_products()
 
         self.assertEqual(products, [(ProductType.MOBILE, "600111222")])
+        mock.assert_called_with("GET", API_V1 + "/all?onlyActive=1")
 
-    @patch("pepephone.PepeAPI._bytes_request")
-    def test_get_product_details(self, _bytes_request):
-        _bytes_request.return_value = PRODUCT_DETAILS
-
+    def test_get_product_details(self):
         api = PepeAPI()
-        details = api.get_product_details("123456789")
+        with patch(
+            "pepephone.PepeAPI._bytes_request", return_value=PRODUCT_DETAILS
+        ) as mock:
+            api.get_product_details("123456789")
 
-        _bytes_request.assert_called_with(
-            "GET", "https://services.pepephone.com/v1//consumption/123456789"
+        mock.assert_called_with(
+            "GET", "https://services.pepephone.com/v1/consumption/123456789"
         )
+
+    def test_get_invalid_product_details(self):
+        api = PepeAPI()
+        with patch(
+            "pepephone.PepeAPI._bytes_request", return_value=INVALID_PRODUCT_RESPONSE
+        ):
+            with self.assertRaises(RequestError):
+                api.get_product_details("123456789")
 
 
 if __name__ == "__main__":
